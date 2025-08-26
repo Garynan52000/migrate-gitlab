@@ -13,6 +13,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: Publish
     
     steps:
       - name: Checkout code
@@ -154,7 +155,7 @@ jobs:
         if: steps.check-visibility.outputs.should-sync == 'true'
         uses: wearerequired/git-mirror-action@master
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.GITEE_REPO_ADMIN_TOKEN }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         with:
           source-repo: git@github.com:${{ github.repository }}.git
           destination-repo: git@gitee.com:${{ vars.GITEE_USERNAME }}/${{ github.event.repository.name }}.git
