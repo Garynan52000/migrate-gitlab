@@ -13,14 +13,7 @@
     "start": "bun run migrate-gitlab.ts",
     "dev": "bun --watch migrate-gitlab.ts",
     "build": "node build.cjs",
-    "prepublishOnly": "npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "version:patch": "npm version patch --no-git-tag-version",
-    "version:minor": "npm version minor --no-git-tag-version",
-    "version:major": "npm version major --no-git-tag-version",
-    "release:patch": "npm run version:patch && git add package.json && git commit -m \"chore: bump version to $(node -p \\\"require('./package.json').version\\\")\"",
-    "release:minor": "npm run version:minor && git add package.json && git commit -m \"chore: bump version to $(node -p \\\"require('./package.json').version\\\")\"",
-    "release:major": "npm run version:major && git add package.json && git commit -m \"chore: bump version to $(node -p \\\"require('./package.json').version\\\")\""
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@types/node": "^20.11.1"
