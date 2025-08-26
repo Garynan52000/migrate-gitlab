@@ -154,7 +154,7 @@ jobs:
         uses: wearerequired/git-mirror-action@master
         with:
           source-repo: https://github.com/${{ github.repository }}.git
-          destination-repo: https://${{ vars.GITEE_USERNAME }}:${{ secrets.GITEE_REPO_ADMIN_TOKEN }}@gitee.com/${{ vars.GITEE_USERNAME | lower }}/${{ github.event.repository.name }}.git
+          destination-repo: https://${{ vars.GITEE_USERNAME }}:${{ secrets.GITEE_REPO_ADMIN_TOKEN }}@gitee.com/${{ lower(vars.GITEE_USERNAME) }}/${{ github.event.repository.name }}.git
 
       # - name: Build Gitee Pages
       #   if: steps.check-visibility.outputs.should-sync == 'true'
