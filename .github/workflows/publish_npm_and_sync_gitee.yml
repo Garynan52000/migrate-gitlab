@@ -104,6 +104,13 @@ jobs:
             echo "Repository is public, proceeding with Gitee sync"
             echo "should-sync=true" >> $GITHUB_OUTPUT
           fi
+      
+      # 预处理 Gitee 变量
+      - name: Prepare Gitee
+        id: prepare-gitee
+        run: |
+          GITEE_USERNAME_LOWER=$(echo "${{ vars.GITEE_USERNAME }}" | tr '[:upper:]' '[:lower:]')
+          echo "username-lower=$GITEE_USERNAME_LOWER" >> $GITHUB_OUTPUT
 
       # 检查 Gitee 仓库是否存在
       - name: Check Gitee Repository
@@ -154,7 +161,7 @@ jobs:
         uses: wearerequired/git-mirror-action@master
         with:
           source-repo: https://github.com/${{ github.repository }}.git
-          destination-repo: https://${{ vars.GITEE_USERNAME }}:${{ secrets.GITEE_REPO_ADMIN_TOKEN }}@gitee.com/${{ lower(vars.GITEE_USERNAME) }}/${{ github.event.repository.name }}.git
+          destination-repo: https://${{ vars.GITEE_USERNAME }}:${{ secrets.GITEE_REPO_ADMIN_TOKEN }}@gitee.com/${{ steps.prepare-gitee.outputs.username-lower }}/${{ github.event.repository.name }}.git
 
       # - name: Build Gitee Pages
       #   if: steps.check-visibility.outputs.should-sync == 'true'
