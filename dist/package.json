@@ -1,0 +1,65 @@
+{
+  "name": "@garynan/migrate-gitlab",
+  "version": "1.0.0",
+  "description": "GitLab项目迁移工具 - 支持批量迁移、断点续传、智能重试的命令行工具",
+  "type": "module",
+  "main": "migrate-gitlab.js",
+  "bin": {
+    "migrate-gitlab": "./migrate-gitlab.js",
+    "mgitlab": "./migrate-gitlab.js"
+  },
+  "scripts": {
+    "migrate": "bun run migrate-gitlab.ts",
+    "start": "bun run migrate-gitlab.ts",
+    "dev": "bun --watch migrate-gitlab.ts",
+    "build": "node build.cjs",
+    "prepublishOnly": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version",
+    "release:patch": "npm run version:patch && git add package.json && git commit -m \"chore: bump version to $(node -p \\\"require('./package.json').version\\\")\"",
+    "release:minor": "npm run version:minor && git add package.json && git commit -m \"chore: bump version to $(node -p \\\"require('./package.json').version\\\")\"",
+    "release:major": "npm run version:major && git add package.json && git commit -m \"chore: bump version to $(node -p \\\"require('./package.json').version\\\")\""
+  },
+  "dependencies": {
+    "@types/node": "^20.11.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.11.1",
+    "bun": ">=1.0.0"
+  },
+  "keywords": [
+    "gitlab",
+    "migration",
+    "git",
+    "typescript",
+    "bun",
+    "cli",
+    "command-line",
+    "devops",
+    "automation",
+    "repository"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Garynan52000/migrate-gitlab.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Garynan52000/migrate-gitlab/issues"
+  },
+  "homepage": "https://github.com/Garynan52000/migrate-gitlab#readme",
+  "preferGlobal": true,
+  "files": [
+    "migrate-gitlab.ts",
+    "README.md",
+    "dist/",
+    "build.cjs"
+  ],
+  "types": "./dist/migrate-gitlab.d.ts",
+  "author": "garynan",
+  "license": "MIT"
+}

@@ -1,0 +1,169 @@
+name: Publish to NPM and Sync to Gitee
+
+on:
+  push:
+    branches:
+      - main
+      - release
+      - 'release/*'
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Install dependencies
+        run: bun install
+      
+      - name: Build project
+        run: npm run build
+      
+      # - name: Run tests
+      #   run: bun test
+      #   continue-on-error: true
+      
+      - name: Get package version
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "current-version=$VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Check if version exists on npm
+        id: check-version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          VERSION=${{ steps.package-version.outputs.current-version }}
+          
+          if npm view "$PACKAGE_NAME@$VERSION" version 2>/dev/null; then
+            echo "version-exists=true" >> $GITHUB_OUTPUT
+            echo "Version $VERSION already exists on npm"
+          else
+            echo "version-exists=false" >> $GITHUB_OUTPUT
+            echo "Version $VERSION does not exist on npm, proceeding with publish"
+          fi
+      
+      - name: Publish to npm
+        if: startsWith(github.ref, 'refs/tags/v') && steps.check-version.outputs.version-exists == 'false'
+        run: |
+          cd dist
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACK_ADMIN_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+      
+      
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') && steps.check-version.outputs.version-exists == 'false'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        with:
+          tag_name: v${{ steps.package-version.outputs.current-version }}
+          release_name: Release v${{ steps.package-version.outputs.current-version }}
+          body: |
+            Release version ${{ steps.package-version.outputs.current-version }}
+            
+            ## Changes
+            - Automated release from ${{ github.ref_name }} branch
+          draft: false
+          prerelease: false
+
+      # 检查 GitHub 仓库可见性
+      - name: Check Repository Visibility
+        id: check-visibility
+        run: |
+          REPO_INFO=$(curl -s -H "Authorization: token ${{ secrets.REPO_ADMIN_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}")
+          VISIBILITY=$(echo "$REPO_INFO" | jq -r '.private')
+          
+          if [ "$VISIBILITY" = "true" ]; then
+            echo "Repository is private, skipping Gitee sync"
+            echo "should-sync=false" >> $GITHUB_OUTPUT
+          else
+            echo "Repository is public, proceeding with Gitee sync"
+            echo "should-sync=true" >> $GITHUB_OUTPUT
+          fi
+
+      # 检查 Gitee 仓库是否存在
+      - name: Check Gitee Repository
+        id: check-gitee-repo
+        if: steps.check-visibility.outputs.should-sync == 'true'
+        run: |
+          REPO_NAME="${{ github.event.repository.name }}"
+          
+          # 检查仓库是否存在
+          REPO_EXISTS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://gitee.com/api/v5/repos/${{ vars.GITEE_USERNAME }}/$REPO_NAME?access_token=${{ secrets.GITEE_REPO_ADMIN_TOKEN }}")
+          
+          if [ "$REPO_EXISTS" = "200" ]; then
+            echo "Gitee repository exists"
+            echo "repo-exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Gitee repository does not exist, will create it"
+            echo "repo-exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      # 创建 Gitee 仓库（如果不存在）
+      - name: Create Gitee Repository
+        if: steps.check-visibility.outputs.should-sync == 'true' && steps.check-gitee-repo.outputs.repo-exists == 'false'
+        run: |
+          REPO_NAME="${{ github.event.repository.name }}"
+          REPO_DESCRIPTION="${{ github.event.repository.description }}"
+          
+          # 如果描述为空，使用默认描述
+          if [ -z "$REPO_DESCRIPTION" ] || [ "$REPO_DESCRIPTION" = "null" ]; then
+            REPO_DESCRIPTION="Mirror of GitHub repository ${{ github.repository }}"
+          fi
+          
+          curl -X POST "https://gitee.com/api/v5/user/repos" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"access_token\": \"${{ secrets.GITEE_REPO_ADMIN_TOKEN }}\",
+              \"name\": \"$REPO_NAME\",
+              \"description\": \"$REPO_DESCRIPTION\",
+              \"private\": false,
+              \"has_issues\": true,
+              \"has_wiki\": true,
+              \"can_comment\": true
+            }"
+          
+          echo "Gitee repository created successfully"
+
+      # 同步代码到 Gitee
+      - name: Sync to Gitee
+        if: steps.check-visibility.outputs.should-sync == 'true'
+        uses: wearerequired/git-mirror-action@master
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.GITEE_REPO_ADMIN_TOKEN }}
+        with:
+          source-repo: git@github.com:${{ github.repository }}.git
+          destination-repo: git@gitee.com:${{ vars.GITEE_USERNAME }}/${{ github.event.repository.name }}.git
+
+      # - name: Build Gitee Pages
+      #   if: steps.check-visibility.outputs.should-sync == 'true'
+      #   uses: yanglbme/gitee-pages-action@main
+      #   with:
+      #     gitee-username: ${{ vars.GITEE_USERNAME }}
+      #     gitee-password: ${{ secrets.GITEE_REPO_ADMIN_TOKEN }}
+      #     gitee-repo: ${{ vars.GITEE_USERNAME }}/${{ github.event.repository.name }}
+      #     branch: main
